@@ -19,6 +19,7 @@ STATE_COUNT_THRESHOLD = 3
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
+        rospy.loginfo("init")
 
         self.pose = None
         self.waypoints = None
@@ -56,7 +57,10 @@ class TLDetector(object):
         self.waypoints = None
         self.waypoints_2d = None
 
+        self.has_image = False
         self.initialized = False
+
+        rospy.loginfo("end")
 
         rospy.spin()
 
@@ -73,7 +77,9 @@ class TLDetector(object):
     def traffic_cb(self, msg):
         self.lights = msg.lights
 
-        #self.image_cb(None)
+        if not self.has_image:
+            light_wp, state = self.process_traffic_lights()
+            self.publish_light(light_wp, state)
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -87,6 +93,10 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
 
+        self.publish_light(light_wp, state)
+
+
+    def publish_light(self, light_wp, state):
         '''
         Publish upcoming red lights at camera frequency.
         Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
@@ -145,6 +155,9 @@ class TLDetector(object):
 
         if not self.has_image:
             self.prev_light_loc = None
+            if light.state != None: #mean we're operating without camera, just by TL info
+                return light.state
+
             return TrafficLight.UNKNOWN
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")

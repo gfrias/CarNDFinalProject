@@ -33,6 +33,7 @@ class WaypointUpdater(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
         rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
@@ -51,6 +52,7 @@ class WaypointUpdater(object):
         self.pose = msg
 
     def waypoints_cb(self, waypoints):
+        rospy.logwarn("wp cb")
         self.base_waypoints = waypoints
         if not self.waypoints_2d:
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoints]
@@ -60,8 +62,8 @@ class WaypointUpdater(object):
         self.stopline_wp_idx = msg.data
 
     def obstacle_cb(self, msg):
-        # TODO: Callback for /obstacle_waypoint message. We will implement it later
-        pass
+        rospy.logwarn("obstacle wp cb")
+        
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
@@ -109,7 +111,6 @@ class WaypointUpdater(object):
 
     #     self.final_waypoints_pub.publish(lane)
     def publish_waypoints(self, closest_idx):
-        print("publish")
         final_lane = self.generate_lane()
         self.final_waypoints_pub.publish(final_lane)
 
@@ -122,8 +123,7 @@ class WaypointUpdater(object):
 
         if len(base_waypoints) < LOOKAHEAD_WPS:
             rospy.logwarn("fewer waypoints sent %d", len(base_waypoints))
-
-        rospy.loginfo("stop line at %d", self.stopline_wp_idx)
+            
         if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
             lane.waypoints = base_waypoints
         else:
