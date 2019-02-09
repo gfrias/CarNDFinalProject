@@ -13,22 +13,21 @@ import cv2
 import yaml
 import time
 
-count = 0
 STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
-        rospy.loginfo("init")
 
         self.pose = None
         self.waypoints = None
         self.camera_image = None
         self.lights = []
 
-        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-
+        self.waypoint_tree = None
+        self.waypoints = None
+        self.waypoints_2d = None
+        self.initialized = False
         '''
         /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
         helps you acquire an accurate ground truth data source for the traffic light
@@ -36,13 +35,11 @@ class TLDetector(object):
         simulator. When testing on the vehicle, the color state will not be available. You'll need to
         rely on the position of the light and the camera image to predict it.
         '''
-        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
-
+        
+        self.has_image = False
+        
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
-
-        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -53,14 +50,13 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
-        self.waypoint_tree = None
-        self.waypoints = None
-        self.waypoints_2d = None
+        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
-        self.has_image = False
-        self.initialized = False
+        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
-        rospy.loginfo("end")
+        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         rospy.spin()
 
@@ -110,10 +106,8 @@ class TLDetector(object):
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
-            # rospy.loginfo("publishing %d", light_wp)
             self.upcoming_red_light_pub.publish(Int32(light_wp))
         else:
-            # rospy.loginfo("publishing %d", self.last_wp)
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
 
@@ -127,20 +121,7 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
         return self.waypoint_tree.query([x, y], 1)[1]
-
-    # def write_imgs(self):
-    # global count
-    # count = (count + 1) % 10
-    # if count == 1:
-    #     p1 = light.pose.pose.position
-    #     p2 = self.pose.pose.position
-    #     dist = ((p1.x-p2.x)**2 + (p1.y-p2.y)**2)**.5
-    #     if (dist < 200):
-    #         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-    #         timestr = time.strftime("%Y%m%d-%H%M%S")
-    #         cv2.imwrite("imgs/" + ("%.2f" % dist) + "_"+ str(light.state) + ".png", cv_image)
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -152,7 +133,6 @@ class TLDetector(object):
         int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-
         if not self.has_image:
             self.prev_light_loc = None
             if light.state != None: #mean we're operating without camera, just by TL info
@@ -170,11 +150,10 @@ class TLDetector(object):
             p2 = self.pose.pose.position
             dist = ((p1.x-p2.x)**2 + (p1.y-p2.y)**2)**.5
             if dist < 120:
-                rospy.logwarn('error %d', light.state)
-                cv2.imwrite("errors/" + ("%.2f" % dist) + "_"+ str(light.state) + "_" + str(val) + ".png", cv_image)
+                rospy.logwarn('error: calc %d truth %d', val, light.state)
+                # cv2.imwrite("errors/" + ("%.2f" % dist) + "_t_"+ str(light.state) + "_p_" + str(val) + ".png", cv_image)
 
-
-        return light.state #for testing only!!!
+        return val #light.state #for testing only!!!
 
 
     def process_traffic_lights(self):

@@ -52,7 +52,6 @@ class WaypointUpdater(object):
         self.pose = msg
 
     def waypoints_cb(self, waypoints):
-        rospy.logwarn("wp cb")
         self.base_waypoints = waypoints
         if not self.waypoints_2d:
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoints]
@@ -121,8 +120,8 @@ class WaypointUpdater(object):
         farthest_idx = closest_idx + LOOKAHEAD_WPS
         base_waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
 
-        if len(base_waypoints) < LOOKAHEAD_WPS:
-            rospy.logwarn("fewer waypoints sent %d", len(base_waypoints))
+        # if len(base_waypoints) < LOOKAHEAD_WPS:
+        #     rospy.logwarn("fewer waypoints sent %d", len(base_waypoints))
             
         if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
             lane.waypoints = base_waypoints

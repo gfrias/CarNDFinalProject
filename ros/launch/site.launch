@@ -23,4 +23,7 @@
 
     <!--Camera Info Publisher -->
     <include file="$(find camera_info_publisher)/launch/camera_info_publisher.launch"/>
+
+    <!--Traffic Light Classifier Model to be used -->
+    <param name="traffic_light_classifier_model" value="nn" />
 </launch>
