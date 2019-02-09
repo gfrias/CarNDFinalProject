@@ -12,6 +12,8 @@ class TLClassifier(object):
 
         if self.method == "cv":
             rospy.loginfo('using CV classifier')
+        elif self.method == "cv2":
+            rospy.loginfo('using CV classifier v2')
         elif self.method == "nn":
             rospy.loginfo('using NN classifier')
             model = rospy.get_param("/traffic_light_classifier_model")
@@ -36,6 +38,8 @@ class TLClassifier(object):
     def get_classification(self, image):
         if self.method == "cv":
             val = self.get_classification_cv(image)
+        elif self.method == "cv2":
+            val = self.get_classification_cv2(image)
         elif self.method == "nn":
             val = self.get_classification_nn(image)
         else:
@@ -66,6 +70,33 @@ class TLClassifier(object):
             # print ('predicting', "red", count)
             return TrafficLight.RED
         # print ('predicting', "go")
+
+        return TrafficLight.UNKNOWN
+
+
+    def get_classification_cv2(self, i):
+        lb = np.array([100, 190, 255])
+        ub = np.array([190, 255, 255])
+
+        m = cv2.inRange(i, lb, ub)
+        i = cv2.bitwise_and(i, i, mask=m)
+
+        lb = np.array([119, 131, 255])
+        ub = np.array([153, 255, 255])
+
+        m = cv2.inRange(i, lb, ub)
+        i = cv2.bitwise_and(i, i, mask=m)
+
+        mx = 0
+        (lx, ly, lz ) = i.shape
+        for x in range(0, lx, 10):
+            for y in range(0, ly, 10):
+                c = np.count_nonzero(i[x:x+30,y:y+30,0])
+                if c > mx:
+                    mx = c
+
+        if mx > 150:
+            return TrafficLight.RED
 
         return TrafficLight.UNKNOWN
 
