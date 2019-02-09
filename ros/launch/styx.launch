@@ -21,6 +21,6 @@
     <!--Traffic Light Locations and Camera Config -->
     <param name="traffic_light_config" textfile="$(find tl_detector)/sim_traffic_light_config.yaml" />
 
-    <!--Traffic Light Classifier Model to be used -->
-    <param name="traffic_light_classifier_model" value="cv" />
+    <!--Traffic Light Classifier Method to be used -->
+    <param name="traffic_light_classifier_method" value="cv" />
 </launch>

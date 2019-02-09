@@ -7,30 +7,39 @@ import rospy
 import tensorflow as tf
 
 class TLClassifier(object):
-    def __init__(self, model = 'nn'):
-        self.model = rospy.get_param("/traffic_light_classifier_model")
-        if self.model == "cv":
-            print('using CV classifier')
-        else:
-            model = 'lr0.0001_95acc'
-            print('using NN classifier:', model)
+    def __init__(self):
+        self.method = rospy.get_param("/traffic_light_classifier_method")
 
-            dir_path = os.path.dirname(os.path.realpath(__file__)) + "nn/"
+        if self.method == "cv":
+            rospy.loginfo('using CV classifier')
+        elif self.method == "nn":
+            rospy.loginfo('using NN classifier')
+            model = rospy.get_param("/traffic_light_classifier_model")
+            
+            dir_path = os.path.dirname(os.path.realpath(__file__)) + "/nn"
 
             self.sess = tf.Session()
-            print(dir_path + '/' + model + '/ckp_tf_classifier.meta')
-            saver = tf.train.import_meta_graph(dir_path + '/' + model + '/ckp_tf_classifier.meta')
-            saver.restore(self.sess, tf.train.latest_checkpoint(dir_path + '/' + model + '/'))
+
+            model_dir = dir_path + '/' + model + '/'
+            model_file = model_dir + 'ckp_tf_classifier.meta'
+            rospy.loginfo('loading model from: %s', model_file)
+
+            saver = tf.train.import_meta_graph(model_file)
+            saver.restore(self.sess, tf.train.latest_checkpoint(model_dir))
 
             self.graph = tf.get_default_graph()
             self.tl_logits = self.graph.get_tensor_by_name("tl_logits/BiasAdd:0")
+        else:
+            assert False, ("Method not available: %s" % (self.method))
 
 
     def get_classification(self, image):
-        if self.model == "cv":
+        if self.method == "cv":
             val = self.get_classification_cv(image)
-        else:
+        elif self.method == "nn":
             val = self.get_classification_nn(image)
+        else:
+            assert False, ("Method not available: %s" % (self.method))
 
         return val
 
@@ -45,7 +54,6 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        #TODO implement light color prediction
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
         lower_red = np.array([0,150,100])
