@@ -30,21 +30,19 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
-        rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
-
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
-        self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
-
         # TODO: Add other member variables you need below
         self.pose = None
         self.base_waypoints = None
         self.waypoints_2d = None
         self.waypoint_tree = None
         self.stopline_wp_idx = -1
+
+        self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
+
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
 
         self.loop()
 
@@ -71,11 +69,16 @@ class WaypointUpdater(object):
         waypoints[waypoint].twist.twist.linear.x = velocity
 
     def distance(self, waypoints, wp1, wp2):
+    	size = len(waypoints)
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
         for i in range(wp1, wp2+1):
-            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
-            wp1 = i
+			if ((wp1 >= size) or (i >= size)):
+				rospy.logwarn("waypoint size error: %d, %d", wp1, i)
+				return dist
+
+			dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+			wp1 = i
         return dist
 
     def get_closest_waypoint_idx(self):
@@ -101,14 +104,6 @@ class WaypointUpdater(object):
 
         return closest_idx
 
-    # def publish_waypoints(self, closest_idx):
-    #     lane = Lane()
-    #     lane.header = self.base_waypoints.header
-    #     lane.waypoints = self.base_waypoints.waypoints[closest_idx:closest_idx+LOOKAHEAD_WPS]
-    #     if len(lane.waypoints) < LOOKAHEAD_WPS:
-    #         rospy.logwarn("fewer waypoints sent %d", len(lane.waypoints))
-
-    #     self.final_waypoints_pub.publish(lane)
     def publish_waypoints(self, closest_idx):
         final_lane = self.generate_lane()
         self.final_waypoints_pub.publish(final_lane)
